@@ -40,6 +40,16 @@ const UniversalCSVAnalyzer = () => {
     setSearchTerm('');
   };
 
+  // 쉼표로 구분된 엔티티 추가 함수
+  const addEntitiesFromComma = (input) => {
+    const entities = input.split(',').map(e => e.trim()).filter(e => e);
+    const newEntities = entities.filter(entity => !selectedEntities.includes(entity));
+    if (newEntities.length > 0) {
+      setSelectedEntities([...selectedEntities, ...newEntities]);
+    }
+    setSearchTerm('');
+  };
+
   // 엔티티 제거 함수
   const removeEntity = (entity) => {
     setSelectedEntities(selectedEntities.filter(e => e !== entity));
@@ -70,13 +80,20 @@ const UniversalCSVAnalyzer = () => {
       setData(parsedData);
       setColumns(headers);
       
-      // 엔티티 컬럼 자동 감지 (첫 번째 컬럼으로 가정)
-      if (headers.length > 0) {
-        setConfig(prev => ({
-          ...prev,
-          entityColumn: headers[0]
-        }));
-      }
+      // 컬럼 자동 감지 및 설정
+      const entityColumn = headers.find(h => 
+        h.includes('학교') || h.includes('기관') || h.includes('대상') || h.includes('명')
+      ) || headers[0];
+      
+      const yearColumn = headers.find(h => 
+        h.includes('연도') || h.includes('년도') || h.includes('년') || h.includes('기준연도')
+      );
+      
+      setConfig(prev => ({
+        ...prev,
+        entityColumn: entityColumn,
+        yearColumn: yearColumn || ''
+      }));
     };
     reader.readAsText(file);
   };
@@ -429,28 +446,56 @@ const UniversalCSVAnalyzer = () => {
                   <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <input
                     type="text"
-                    placeholder={`🔍 ${config.entityColumn}을(를) 검색하세요...`}
+                    placeholder={`🔍 ${config.entityColumn}을(를) 검색하거나 쉼표(,)로 구분해서 입력하세요...`}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && searchTerm.includes(',')) {
+                        addEntitiesFromComma(searchTerm);
+                      }
+                    }}
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
                   />
                 </div>
                 
                 {searchTerm && (
                   <div className="mt-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg bg-white shadow-lg">
-                    {filteredEntities.slice(0, 15).map(entity => (
-                      <button
-                        key={entity}
-                        onClick={() => addEntity(entity)}
-                        className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-gray-100 last:border-b-0 transition-colors"
-                      >
-                        <span className="text-gray-800">{entity}</span>
-                      </button>
-                    ))}
-                    {filteredEntities.length > 15 && (
-                      <div className="px-4 py-2 text-sm text-gray-500 bg-gray-50">
-                        +{filteredEntities.length - 15}개 더 있음
+                    {searchTerm.includes(',') ? (
+                      <div className="p-4">
+                        <div className="text-sm text-gray-600 mb-2">
+                          쉼표로 구분된 입력을 Enter 키로 추가할 수 있습니다:
+                        </div>
+                        <div className="text-sm text-gray-800 mb-3">
+                          {searchTerm.split(',').map((entity, index) => (
+                            <span key={index} className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded mr-2 mb-1">
+                              {entity.trim() || '빈 값'}
+                            </span>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => addEntitiesFromComma(searchTerm)}
+                          className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                        >
+                          ✅ 선택된 항목들 추가
+                        </button>
                       </div>
+                    ) : (
+                      <>
+                        {filteredEntities.slice(0, 15).map(entity => (
+                          <button
+                            key={entity}
+                            onClick={() => addEntity(entity)}
+                            className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                          >
+                            <span className="text-gray-800">{entity}</span>
+                          </button>
+                        ))}
+                        {filteredEntities.length > 15 && (
+                          <div className="px-4 py-2 text-sm text-gray-500 bg-gray-50">
+                            +{filteredEntities.length - 15}개 더 있음
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
