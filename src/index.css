@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* 파일 업로드 영역 스타일 */
+.file-upload-area {
+  transition: all 0.2s ease-in-out;
+}
+
+.file-upload-area:hover {
+  border-color: #3B82F6;
+  background-color: #F8FAFC;
+}
+
+/* 테이블 스타일 개선 */
+.analysis-table {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.analysis-table th {
+  background-color: #F9FAFB;
+  font-weight: 600;
+}
+
+.analysis-table td, .analysis-table th {
+  border: 1px solid #E5E7EB;
+  padding: 12px;
+}
+
+/* T점수 색상 스타일 */
+.t-score-excellent {
+  color: #059669;
+  font-weight: 600;
+}
+
+.t-score-good {
+  color: #2563EB;
+  font-weight: 600;
+}
+
+.t-score-average {
+  color: #D97706;
+  font-weight: 600;
+}
+
+.t-score-poor {
+  color: #DC2626;
+  font-weight: 600;
+}
+
+/* 반응형 개선 */
+@media (max-width: 768px) {
+  .analysis-table {
+    font-size: 14px;
+  }
+  
+  .analysis-table td, .analysis-table th {
+    padding: 8px;
+  }
+}
