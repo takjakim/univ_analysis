@@ -16,6 +16,46 @@ const UniversalCSVAnalyzer = () => {
     analysisColumns: []
   });
 
+  // 샘플 데이터 목록
+  const sampleDataList = [
+    {
+      id: 'school-performance',
+      name: '🏫 학교 성과 데이터',
+      description: '전국 주요 고등학교의 학업 성과 및 입학/졸업률 데이터',
+      filename: 'school-performance.csv',
+      preview: '서울고등학교, 경기고등학교, 인천고등학교, 부산고등학교, 대구고등학교'
+    },
+    {
+      id: 'company-financial',
+      name: '🏢 기업 재무 데이터',
+      description: '주요 기업들의 재무제표 및 수익성 지표 데이터',
+      filename: 'company-financial.csv',
+      preview: '삼성전자, SK하이닉스, LG에너지솔루션, 현대자동차, 기아자동차'
+    },
+    {
+      id: 'region-population',
+      name: '🌍 지역 인구 데이터',
+      description: '전국 주요 지역의 인구 통계 및 인구 이동 데이터',
+      filename: 'region-population.csv',
+      preview: '서울특별시, 경기도, 인천광역시, 부산광역시, 대구광역시'
+    },
+    {
+      id: '중도탈락률',
+      name: '학생 중도탈락률률',
+      description: '3개년 학생 중도탈락률 계산',
+      filename: '중도탈락.csv',
+      preview: '전국대학'
+    }
+    // 여기에 새로운 데이터를 추가하세요!
+    // {
+    //   id: 'your-custom-data',
+    //   name: '📊 당신의 데이터',
+    //   description: '데이터에 대한 설명',
+    //   filename: 'your-custom-data.csv',
+    //   preview: '대상1, 대상2, 대상3'
+    // }
+  ];
+
   // 필터링된 엔티티 목록
   const filteredEntities = useMemo(() => {
     if (!searchTerm) return [];
@@ -55,6 +95,49 @@ const UniversalCSVAnalyzer = () => {
     setSelectedEntities(selectedEntities.filter(e => e !== entity));
   };
 
+  // CSV 데이터 파싱 함수
+  const parseCSVData = (csvText) => {
+    // 줄바꿈 통일
+    const normalized = csvText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const lines = normalized.split('\n');
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    
+    const parsedData = lines.slice(1)
+      .filter(line => line.trim())
+      .map(line => {
+        const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+        const row = {};
+        headers.forEach((header, index) => {
+          row[header] = values[index] || '';
+        });
+        return row;
+      });
+
+    return { headers, parsedData };
+  };
+
+  // 컬럼 자동 감지 및 설정 함수
+  const autoDetectColumns = (headers) => {
+    const entityColumn = headers.find(h => 
+      h.includes('학교') || h.includes('기관') || h.includes('대상') || h.includes('명') || h.includes('기업명') || h.includes('지역')
+    ) || headers[0];
+    
+    const yearColumn = headers.find(h => 
+      h.includes('연도') || h.includes('년도') || h.includes('년') || h.includes('기준연도')
+    );
+    
+    const regionColumn = headers.find(h => 
+      h.includes('지역') || h.includes('구분') || h.includes('분류')
+    );
+    
+    setConfig(prev => ({
+      ...prev,
+      entityColumn: entityColumn,
+      yearColumn: yearColumn || '',
+      regionColumn: regionColumn || ''
+    }));
+  };
+
   // CSV 파일 처리 함수
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
@@ -62,40 +145,40 @@ const UniversalCSVAnalyzer = () => {
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      const csv = e.target.result;
-      const lines = csv.split('\n');
-      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-      
-      const parsedData = lines.slice(1)
-        .filter(line => line.trim())
-        .map(line => {
-          const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
-          const row = {};
-          headers.forEach((header, index) => {
-            row[header] = values[index] || '';
-          });
-          return row;
-        });
-
+      const { headers, parsedData } = parseCSVData(e.target.result);
       setData(parsedData);
       setColumns(headers);
-      
-      // 컬럼 자동 감지 및 설정
-      const entityColumn = headers.find(h => 
-        h.includes('학교') || h.includes('기관') || h.includes('대상') || h.includes('명')
-      ) || headers[0];
-      
-      const yearColumn = headers.find(h => 
-        h.includes('연도') || h.includes('년도') || h.includes('년') || h.includes('기준연도')
-      );
-      
-      setConfig(prev => ({
-        ...prev,
-        entityColumn: entityColumn,
-        yearColumn: yearColumn || ''
-      }));
+      autoDetectColumns(headers);
     };
     reader.readAsText(file);
+  };
+
+  // 샘플 데이터 로드 함수
+  const loadSampleData = async (sampleData) => {
+    try {
+      // 반드시 /sample-data/로 시작!
+      const response = await fetch(`/sample-data/${sampleData.filename}`);
+      const csvText = await response.text();
+
+      // HTML(404) 응답 감지
+      if (csvText.startsWith('<!DOCTYPE html>')) {
+        alert('샘플 CSV 파일을 찾을 수 없습니다. 파일 경로와 이름을 확인하세요.');
+        return;
+      }
+
+      const { headers, parsedData } = parseCSVData(csvText);
+      setData(parsedData);
+      setColumns(headers);
+      autoDetectColumns(headers);
+
+      const entities = [...new Set(parsedData.map(row => row[headers[0]]))];
+      if (entities.length > 0) {
+        setSelectedEntities(entities.slice(0, 3));
+      }
+    } catch (error) {
+      console.error('샘플 데이터 로드 실패:', error);
+      alert('샘플 데이터를 불러오는데 실패했습니다.');
+    }
   };
 
   // 엔티티 목록 업데이트
@@ -325,28 +408,75 @@ const UniversalCSVAnalyzer = () => {
 
         {data.length === 0 ? (
           <div className="text-center py-12">
-            <div className="mb-6">
+            <div className="mb-8">
               <Upload className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h2 className="text-2xl font-semibold text-gray-700 mb-2">CSV 파일을 업로드하세요</h2>
-              <p className="text-gray-500 mb-6">
-                분석할 CSV 파일을 선택하면 자동으로 컬럼을 감지하고 설정할 수 있습니다.
+              <h2 className="text-2xl font-semibold text-gray-700 mb-2">데이터를 선택하거나 업로드하세요</h2>
+              <p className="text-gray-500 mb-8">
+                샘플 데이터를 사용하거나 직접 CSV 파일을 업로드하여 분석을 시작할 수 있습니다.
               </p>
             </div>
-            <label className="cursor-pointer inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 font-medium shadow-lg transition-all">
-              <Upload className="h-5 w-5 mr-2" />
-              📁 CSV 파일 선택
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-            </label>
+            
+            {/* 샘플 데이터 선택 섹션 */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-700 mb-4">📊 샘플 데이터</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+                {sampleDataList.map((sampleData) => (
+                  <div
+                    key={sampleData.id}
+                    className="bg-white p-6 rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all cursor-pointer"
+                    onClick={() => loadSampleData(sampleData)}
+                  >
+                    <h4 className="font-semibold text-gray-800 mb-2">{sampleData.name}</h4>
+                    <p className="text-sm text-gray-600 mb-3">{sampleData.description}</p>
+                    <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                      <strong>포함 대상:</strong> {sampleData.preview}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* 구분선 */}
+            <div className="flex items-center justify-center mb-8">
+              <div className="flex-1 h-px bg-gray-300"></div>
+              <span className="px-4 text-gray-500 text-sm">또는</span>
+              <div className="flex-1 h-px bg-gray-300"></div>
+            </div>
+            
+            {/* 파일 업로드 섹션 */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-700 mb-4">📁 직접 파일 업로드</h3>
+              <label className="cursor-pointer inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 font-medium shadow-lg transition-all">
+                <Upload className="h-5 w-5 mr-2" />
+                CSV 파일 선택
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+              </label>
+              <p className="text-sm text-gray-500 mt-2">
+                CSV 파일을 선택하면 자동으로 컬럼을 감지하고 설정할 수 있습니다.
+              </p>
+            </div>
           </div>
         ) : (
           <>
             <div className="mb-6 p-6 bg-white rounded-xl shadow-lg border">
-              <h2 className="text-xl font-semibold mb-4 text-gray-800">⚙️ 분석 설정</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-gray-800">⚙️ 분석 설정</h2>
+                <button
+                  onClick={() => {
+                    setData([]);
+                    setSelectedEntities([]);
+                    setAnalysisResults(null);
+                  }}
+                  className="px-4 py-2 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  🔄 다른 데이터 선택
+                </button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2 text-gray-700">👥 분석 대상 컬럼</label>
